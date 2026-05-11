@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}扫描结果{% endblock %}
+
+{% block content %}
+<div class="page-title">扫描结果</div>
+
+{% for result in results %}
+<div class="result-card">
+    <h4>【{{ result.item_id }}】{{ result.device_name }}</h4>
+    
+    {% if result.lowest_price %}
+    <div class="lowest-price">
+        <div class="label">最低价格</div>
+        <div class="price">¥{{ result.lowest_price|round(2)|format_number }}</div>
+        <div style="font-size: 12px; opacity: 0.9; margin-top: 4px;">
+            来源: {{ result.lowest_source }}
+            {% if result.lowest_url %}
+            <a href="{{ result.lowest_url }}" target="_blank" style="color: rgba(255,255,255,0.8); margin-left: 8px;">查看详情</a>
+            {% endif %}
+        </div>
+    </div>
+    
+    {% if result.prices %}
+    <div class="price-list">
+        {% for price in result.prices %}
+        <div class="price-item">
+            <div>
+                <div class="source">{{ price.source }}</div>
+                <a href="{{ price.url }}" target="_blank" style="font-size: 11px;">{{ price.title|truncate(50) }}</a>
+            </div>
+            <div class="price-value">¥{{ price.price|round(2)|format_number }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% else %}
+    <p style="color: #E74C3C;">未能获取到价格数据</p>
+    {% endif %}
+</div>
+{% endfor %}
+
+<div style="text-align: center; margin-top: 24px;">
+    <a href="/scrape" class="btn btn-outline">🔄 重新扫描</a>
+    <a href="/" class="btn btn-primary" style="margin-left: 12px;">返回首页</a>
+</div>
+{% endblock %}

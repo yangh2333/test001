@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}监控概览{% endblock %}
+
+{% block content %}
+<div class="page-title">监控概览</div>
+
+<div class="stats-cards">
+    <div class="stat-card">
+        <div class="label">监控项目数</div>
+        <div class="value">{{ price_stats|length }}</div>
+    </div>
+    <div class="stat-card warning">
+        <div class="label">预警数量</div>
+        <div class="value">{{ alert_count }}</div>
+    </div>
+    <div class="stat-card success">
+        <div class="label">正常项目</div>
+        <div class="value">{{ price_stats|selectattr('status', 'equalto', 'normal')|list|length }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">最后更新</div>
+        <div class="value" style="font-size: 14px;">{{ current_time }}</div>
+    </div>
+</div>
+
+<div class="table-container">
+    <div class="table-header">
+        <h3>价格监控列表</h3>
+        <a href="/scrape" class="btn btn-outline">🔄 自动扫描</a>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>品类</th>
+                <th>设备名称</th>
+                <th>当前价格</th>
+                <th>目标区间</th>
+                <th>记录日期</th>
+                <th>状态</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in price_stats %}
+            <tr {% if item.status == 'warning' %}class="warning"{% endif %}>
+                <td>{{ item.id }}</td>
+                <td>{{ item.category }}</td>
+                <td>{{ item.device_name }}</td>
+                <td>
+                    {% if item.price %}
+                    <span class="price {% if item.status == 'warning' %}warning{% endif %}">
+                        ¥{{ item.price|round(2)|format_number }}
+                    </span>
+                    {% else %}
+                    <span style="color: #888;">暂无数据</span>
+                    {% endif %}
+                </td>
+                <td>¥{{ item.target_lower|round(2)|format_number }} - ¥{{ item.target_upper|round(2)|format_number }}</td>
+                <td>{{ item.record_date or '-' }}</td>
+                <td><span class="status {{ item.status }}">{{ item.status_text }}</span></td>
+                <td>
+                    <a href="/price-history/{{ item.id }}" class="btn btn-primary" style="padding: 4px 12px; font-size: 12px;">查看历史</a>
+                    {% if item.source_url %}
+                    <a href="{{ item.source_url }}" target="_blank" class="btn btn-outline" style="padding: 4px 12px; font-size: 12px; margin-left: 4px;">搜索</a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        setInterval(function() {
+            fetch('/api/prices')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('数据刷新');
+                });
+        }, 60000);
+    });
+</script>
+{% endblock %}

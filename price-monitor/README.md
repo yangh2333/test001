@@ -1,13 +1,14 @@
-# 价格监控系统 v1.1
+# 价格监控系统 v1.2
 
 ## 项目简介
 
-价格监控系统用于监控数据中心核心部件的市场价格变化，支持28项监控项目，涵盖8大品类。系统支持价格录入、自动价格扫描、预警检测、报告生成等功能。
+价格监控系统用于监控数据中心核心部件的市场价格变化，支持28项监控项目，涵盖8大品类。系统支持价格录入、自动价格扫描、预警检测、报告生成等功能，并提供直观的Web前端界面。
 
 ## 技术栈
 
 - Python 3.6+
 - SQLite 数据库
+- Flask（Web框架）
 - requests（网页抓取）
 - beautifulsoup4（HTML解析）
 - openpyxl（Excel导出）
@@ -17,7 +18,7 @@
 ### 1. 安装依赖
 
 ```bash
-pip install requests beautifulsoup4 openpyxl
+pip install requests beautifulsoup4 openpyxl flask flask-cors
 ```
 
 ### 2. 配置修改
@@ -49,13 +50,88 @@ pip install requests beautifulsoup4 openpyxl
 }
 ```
 
-### 3. 初始化数据库
+### 3. 启动Web服务
 
 ```bash
-python monitor.py init
+python app.py
 ```
 
-## 日常操作
+服务启动后访问: http://localhost:5000
+
+### 4. 命令行操作（可选）
+
+```bash
+python monitor.py init     # 初始化数据库
+python monitor.py batch    # 批量价格录入
+python monitor.py scrape   # 自动扫描电商平台价格
+python monitor.py report   # 生成HTML报告
+python monitor.py export   # 生成Excel报告
+python monitor.py check    # 查看预警
+```
+
+## Web界面功能
+
+### 监控概览
+- 展示所有监控项目的当前价格和状态
+- 统计监控项目总数、预警数量、正常项目数量
+- 支持查看每个项目的价格历史
+- 支持跳转到电商平台搜索页面
+
+### 预警管理
+- 显示所有未处理的预警信息
+- 支持一键标记预警为已处理
+- 预警信息包含触发时间和详细描述
+
+### 自动扫描
+- 选择单个或全部监控项目进行扫描
+- 自动访问京东、阿里巴巴、淘宝等平台获取实时价格
+- 展示各平台价格对比，高亮最低价
+- 显示产品链接，方便查看详情
+
+### 手动录入
+- 选择监控项目录入价格
+- 自动检测预警条件
+- 录入后自动刷新数据
+
+## API接口
+
+### 获取价格数据
+```
+GET /api/prices
+```
+
+### 获取预警列表
+```
+GET /api/alerts
+```
+
+### 手动录入价格
+```
+POST /api/manual-entry
+Content-Type: application/json
+
+{
+    "item_id": "M001",
+    "price": 85000.00
+}
+```
+
+### 扫描价格
+```
+GET /api/scrape/{keyword}
+```
+
+### 处理预警
+```
+POST /api/resolve-alert/{alert_id}
+```
+
+### 健康检查
+```
+GET /health
+```
+
+## 命令行操作
 
 ### 场景1：批量价格录入（推荐每周一次）
 
@@ -65,18 +141,14 @@ python monitor.py batch
 
 按提示逐项输入当前市场价格，系统自动检测预警。
 
-### 场景2：自动扫描电商平台价格（新增）
-
-自动扫描京东、阿里巴巴、淘宝等主流电商平台的实时价格：
+### 场景2：自动扫描电商平台价格
 
 ```bash
 python monitor.py scrape           # 扫描所有监控项目
 python monitor.py scrape M001     # 扫描指定项目
 python monitor.py scrape M001 M005 # 扫描多个指定项目
-python monitor.py scrape --auto    # 扫描并自动记录最低价到数据库
+python monitor.py scrape --auto    # 扫描并自动记录最低价
 ```
-
-扫描完成后，系统会显示各平台的最低价格及产品链接。
 
 ### 场景3：生成价格报告
 
@@ -107,16 +179,16 @@ python monitor.py check
 
 共28项核心监控部件，涵盖8大品类：
 
-| ID | 品类 | 设备名称 | 目标区间 | 查询链接 |
-|----|------|----------|----------|----------|
-| M001-M002 | AI加速卡 | 思元590/690 | ¥80,000-150,000 | 京东搜索 |
-| M003-M004 | CPU | Intel 6448Y/海光7490 | ¥50,000-100,000 | 京东搜索 |
-| M005-M006 | 内存 | DDR5 64GB/128GB | ¥3,500-33,000 | 京东搜索 |
-| M007-M009 | SSD | PM9A3 1.92TB-7.68TB | ¥2,450-7,900 | 京东搜索 |
-| M010-M011 | 电源 | CRPS 3000W | ¥0-4,999 | 京东搜索 |
-| M012-M015 | 网络设备 | IB交换机/网卡 | ¥14,500-287,500 | 京东搜索 |
-| M016-M020 | 网络配件 | 光模块/交换机 | ¥1,400-59,000 | 京东搜索 |
-| M021-M028 | 基础设施 | CDU/UPS/机柜/变压器 | ¥4,050-450,000 | 京东搜索 |
+| ID | 品类 | 设备名称 | 目标区间 |
+|----|------|----------|----------|
+| M001-M002 | AI加速卡 | 思元590/690 | ¥80,000-150,000 |
+| M003-M004 | CPU | Intel 6448Y/海光7490 | ¥50,000-100,000 |
+| M005-M006 | 内存 | DDR5 64GB/128GB | ¥3,500-33,000 |
+| M007-M009 | SSD | PM9A3 1.92TB-7.68TB | ¥2,450-7,900 |
+| M010-M011 | 电源 | CRPS 3000W | ¥0-4,999 |
+| M012-M015 | 网络设备 | IB交换机/网卡 | ¥14,500-287,500 |
+| M016-M020 | 网络配件 | 光模块/交换机 | ¥1,400-59,000 |
+| M021-M028 | 基础设施 | CDU/UPS/机柜/变压器 | ¥4,050-450,000 |
 
 ## 价格来源
 
@@ -128,8 +200,6 @@ python monitor.py check
 | 阿里巴巴 | https://s.1688.com | B2B批发采购平台 |
 | 淘宝 | https://s.taobao.com | 综合电商平台 |
 | 百度爱采购 | https://b2b.baidu.com | B2B采购平台 |
-
-每个监控项目都关联了京东搜索链接，可在报告中直接点击查看。
 
 ## 预警规则
 
@@ -149,7 +219,8 @@ python monitor.py check
 | 数据库锁定 | 检查是否有其他进程占用 | 重启程序，必要时删除 `data/*.db-journal` |
 | Excel导出失败 | 检查是否安装openpyxl | `pip install openpyxl` |
 | 价格抓取失败 | 检查网络连接 | 确认能访问电商平台，部分网站有反爬限制 |
-| 抓取被拦截 | 请求频率过高 | 系统已内置延迟机制，避免请求过快 |
+| Web服务无法启动 | 检查端口是否被占用 | 更换端口或关闭占用进程 |
+| API请求失败 | 检查API地址和参数 | 确认API地址正确，参数格式正确 |
 
 ## 定时任务配置
 
@@ -171,104 +242,40 @@ crontab -e
 
 ```
 price-monitor/
-├── monitor.py        # 主程序
-├── scrapers.py       # 电商价格抓取模块
-├── config.json       # 配置文件
-├── schema.sql        # 数据库初始化脚本
-├── data/             # 数据库文件目录
+├── app.py             # Flask Web应用主程序
+├── monitor.py         # 命令行主程序
+├── scrapers.py        # 电商价格抓取模块
+├── config.json        # 配置文件
+├── schema.sql         # 数据库初始化脚本
+├── templates/         # Web页面模板
+│   ├── base.html      # 基础模板
+│   ├── index.html     # 监控概览
+│   ├── alerts.html    # 预警管理
+│   ├── scrape.html    # 自动扫描
+│   ├── scrape_result.html # 扫描结果
+│   ├── price_history.html # 价格历史
+│   └── manual_entry.html  # 手动录入
+├── data/              # 数据库文件目录
 │   └── price_monitor.db
-├── logs/             # 日志文件目录
+├── logs/              # 日志文件目录
 │   └── monitor.log
-└── README.md         # 说明文档
+└── README.md          # 说明文档
 ```
-
-## 数据库表结构
-
-### monitor_items - 监控项目表
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| id | TEXT | 项目ID（如M001） |
-| category | TEXT | 品类 |
-| device_name | TEXT | 设备名称 |
-| target_upper_limit | REAL | 目标价格上限 |
-| target_lower_limit | REAL | 目标价格下限 |
-| source_url | TEXT | 电商平台搜索链接 |
-
-### price_records - 价格记录表
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| item_id | TEXT | 监控项目ID |
-| price | REAL | 价格 |
-| record_date | TEXT | 记录日期 |
-| source | TEXT | 来源（manual/scrape_jd等） |
-| source_url | TEXT | 产品链接 |
-
-### alerts - 预警记录表
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| item_id | TEXT | 监控项目ID |
-| alert_type | TEXT | 预警类型 |
-| message | TEXT | 预警信息 |
-| triggered_at | TIMESTAMP | 触发时间 |
-| is_resolved | INTEGER | 是否已处理 |
 
 ## 扩展开发
 
 ### 添加新的电商平台
 
-在 `scrapers.py` 中添加新的抓取类：
-
-```python
-class NewPlatformScraper(BaseScraper):
-    def __init__(self):
-        super().__init__()
-        self.name = 'newplatform'
-        self.display_name = '新平台'
-        self.base_url = 'https://search.example.com'
-    
-    def build_url(self, keyword):
-        params = {'q': keyword}
-        return f"{self.base_url}?{urlencode(params)}"
-    
-    def scrape(self, keyword):
-        url = self.build_url(keyword)
-        html = self.fetch_page(url, delay=2)
-        if not html:
-            return {'success': False, 'prices': [], 'source': self.display_name}
-        
-        soup = BeautifulSoup(html, 'html.parser')
-        prices = []
-        
-        for item in soup.select('.product-item'):
-            try:
-                price = float(item.select_one('.price').text)
-                title = item.select_one('.title').text
-                product_url = item.select_one('a').get('href')
-                prices.append({
-                    'price': price,
-                    'title': title.strip(),
-                    'url': product_url
-                })
-            except (ValueError, AttributeError):
-                continue
-        
-        return {
-            'success': len(prices) > 0,
-            'prices': sorted(prices, key=lambda x: x['price'])[:5],
-            'source': self.display_name,
-            'url': url
-        }
-```
-
-然后在 `get_scraper()` 函数中注册新平台。
+在 `scrapers.py` 中添加新的抓取类（详见文档）。
 
 ### 添加新的监控项
 
 1. 在 `schema.sql` 中添加新记录，包含source_url字段
 2. 重新初始化数据库：`python monitor.py init`
+
+### 添加新的Web页面
+
+在 `templates/` 目录下创建新的HTML模板文件，然后在 `app.py` 中添加对应的路由。
 
 ## 联系方式
 
@@ -281,4 +288,5 @@ class NewPlatformScraper(BaseScraper):
 | 版本 | 日期 | 变更内容 |
 |------|------|----------|
 | v1.0 | 2026-05 | 初始版本，包含28项监控、预警、报告功能 |
-| v1.1 | 2026-05 | 新增自动价格扫描功能，支持京东/阿里巴巴/淘宝/百度爱采购平台抓取，价格项保留网络地址 |
+| v1.1 | 2026-05 | 新增自动价格扫描功能，支持京东/阿里巴巴/淘宝/百度爱采购平台抓取 |
+| v1.2 | 2026-05 | 新增Web前端界面，支持可视化监控、预警管理、API接口 |

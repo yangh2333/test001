@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}价格历史 - {{ item_id }}{% endblock %}
+
+{% block content %}
+<div class="page-title">价格历史 - {{ item[2] }}</div>
+
+{% if item %}
+<div style="background: white; padding: 20px; border-radius: 12px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+    <h3>{{ item[1] }} - {{ item[2] }}</h3>
+    <p style="color: #888; margin-top: 8px;">目标区间: ¥{{ item[4]|round(2)|format_number }} - ¥{{ item[3]|round(2)|format_number }}</p>
+    {% if item[5] %}
+    <a href="{{ item[5] }}" target="_blank" class="btn btn-outline" style="margin-top: 12px;">🔍 在京东搜索</a>
+    {% endif %}
+</div>
+
+<div class="table-container">
+    <div class="table-header">
+        <h3>价格记录</h3>
+        <a href="/manual-entry?item_id={{ item_id }}" class="btn btn-primary">📝 录入新价格</a>
+    </div>
+    {% if history_data %}
+    <table>
+        <thead>
+            <tr>
+                <th>价格</th>
+                <th>记录日期</th>
+                <th>来源</th>
+                <th>产品链接</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in history_data %}
+            <tr>
+                <td><span class="price">¥{{ record.price|round(2)|format_number }}</span></td>
+                <td>{{ record.record_date }}</td>
+                <td>{{ record.source }}</td>
+                <td>
+                    {% if record.source_url %}
+                    <a href="{{ record.source_url }}" target="_blank" style="color: #4472C4; text-decoration: none; font-size: 13px;">查看</a>
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <div class="icon">📊</div>
+        <p>暂无价格记录</p>
+        <a href="/manual-entry?item_id={{ item_id }}" class="btn btn-primary" style="margin-top: 16px;">录入第一个价格</a>
+    </div>
+    {% endif %}
+</div>
+{% else %}
+<div class="empty-state">
+    <div class="icon">❌</div>
+    <p>未找到监控项目</p>
+    <a href="/" class="btn btn-primary" style="margin-top: 16px;">返回首页</a>
+</div>
+{% endif %}
+{% endblock %}

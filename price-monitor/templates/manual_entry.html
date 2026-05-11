@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}手动录入{% endblock %}
+
+{% block content %}
+<div class="page-title">手动价格录入</div>
+
+<div class="form-container">
+    <h3 style="margin-bottom: 24px;">录入价格</h3>
+    
+    <form method="POST">
+        <div class="form-group">
+            <label for="item_id">选择监控项目</label>
+            <select id="item_id" name="item_id" required>
+                <option value="">请选择</option>
+                {% for item in items %}
+                <option value="{{ item[0] }}">{{ item[0] }} - {{ item[2] }} (目标: ¥{{ item[4]|round(2)|format_number }}-{{ item[3]|round(2)|format_number }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="price">价格 (元)</label>
+            <input type="number" id="price" name="price" step="0.01" min="0" required placeholder="请输入价格">
+        </div>
+        
+        <button type="submit" class="btn btn-success" style="width: 100%; padding: 12px; font-size: 16px;">
+            ✓ 确认录入
+        </button>
+    </form>
+    
+    <p style="text-align: center; color: #888; margin-top: 16px; font-size: 13px;">
+        录入后系统将自动检测预警条件
+    </p>
+</div>
+{% endblock %}
