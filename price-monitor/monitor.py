@@ -8,6 +8,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 from collections import defaultdict
+from scrapers import get_scraper, scrape_all_sources
 
 CONFIG_FILE = 'config.json'
 DB_FILE = 'data/price_monitor.db'
@@ -46,7 +47,7 @@ def get_db_connection():
 def get_monitor_items():
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('SELECT id, category, device_name, target_upper_limit, target_lower_limit FROM monitor_items ORDER BY id')
+    cursor.execute('SELECT id, category, device_name, target_upper_limit, target_lower_limit, source_url FROM monitor_items ORDER BY id')
     items = cursor.fetchall()
     conn.close()
     return items
@@ -59,12 +60,12 @@ def get_latest_price(item_id):
     conn.close()
     return result
 
-def insert_price_record(item_id, price, source='manual'):
+def insert_price_record(item_id, price, source='manual', source_url=None):
     conn = get_db_connection()
     cursor = conn.cursor()
     record_date = datetime.now().strftime('%Y-%m-%d')
-    cursor.execute('INSERT INTO price_records (item_id, price, record_date, source) VALUES (?, ?, ?, ?)',
-                  (item_id, price, record_date, source))
+    cursor.execute('INSERT INTO price_records (item_id, price, record_date, source, source_url) VALUES (?, ?, ?, ?, ?)',
+                  (item_id, price, record_date, source, source_url))
     conn.commit()
     conn.close()
 
@@ -116,7 +117,7 @@ def send_email(subject, body):
         log(f'邮件发送失败: {str(e)}')
         return False
 
-def check_alerts(item_id, price, item):
+def check_alerts(item_id, price, item, source_url=None):
     config = load_config()
     target_upper = item[3]
     target_lower = item[4]
@@ -166,7 +167,7 @@ def cmd_batch():
     print("按提示逐项输入当前市场价格，输入 'q' 退出\n")
     
     for item in items:
-        item_id, category, device_name, target_upper, target_lower = item
+        item_id, category, device_name, target_upper, target_lower, source_url = item
         
         latest = get_latest_price(item_id)
         latest_info = f" (上次记录: ¥{latest[0]:,.2f} [{latest[1]}])" if latest else ""
@@ -192,12 +193,88 @@ def cmd_batch():
     
     print("批量录入完成")
 
+def cmd_scrape(item_id=None, auto_save=False):
+    init_database()
+    items = get_monitor_items()
+    
+    if item_id:
+        items = [item for item in items if item[0] == item_id]
+        if not items:
+            print(f"未找到监控项: {item_id}")
+            return
+    
+    print("\n===== 自动价格扫描 =====")
+    print(f"将扫描 {len(items)} 个监控项目...\n")
+    
+    all_results = []
+    
+    for item in items:
+        item_id, category, device_name, target_upper, target_lower, source_url = item
+        print(f"正在扫描【{item_id}】{device_name}...")
+        
+        results = scrape_all_sources(device_name)
+        valid_results = []
+        
+        for result in results:
+            if result.get('success') and result.get('prices'):
+                for price_info in result['prices']:
+                    valid_results.append({
+                        'source': result['source'],
+                        'price': price_info['price'],
+                        'title': price_info['title'],
+                        'url': price_info['url']
+                    })
+        
+        if valid_results:
+            min_price_result = min(valid_results, key=lambda x: x['price'])
+            
+            print(f"\n【{item_id}】{device_name} 扫描结果:")
+            print(f"  最低价: ¥{min_price_result['price']:,.2f} ({min_price_result['source']})")
+            print(f"  标题: {min_price_result['title']}")
+            print(f"  URL: {min_price_result['url']}")
+            
+            all_results.append({
+                'item_id': item_id,
+                'device_name': device_name,
+                'category': category,
+                'lowest_price': min_price_result['price'],
+                'lowest_source': min_price_result['source'],
+                'lowest_url': min_price_result['url'],
+                'all_prices': valid_results
+            })
+            
+            if auto_save:
+                insert_price_record(item_id, min_price_result['price'], f"scrape_{min_price_result['source']}", min_price_result['url'])
+                check_alerts(item_id, min_price_result['price'], item, min_price_result['url'])
+                print(f"  [已自动记录最低价]")
+        else:
+            print(f"  未能获取到价格数据")
+            all_results.append({
+                'item_id': item_id,
+                'device_name': device_name,
+                'category': category,
+                'lowest_price': None,
+                'lowest_source': None,
+                'lowest_url': None,
+                'all_prices': []
+            })
+        
+        print()
+    
+    print("===== 扫描完成 =====")
+    print(f"共扫描 {len(items)} 个项目，成功获取 {sum(1 for r in all_results if r['lowest_price'])} 个价格")
+    
+    if auto_save:
+        print("最低价格已自动记录到数据库")
+    
+    return all_results
+
 def cmd_report():
     items = get_monitor_items()
     records = []
     
     for item in items:
-        item_id, category, device_name, target_upper, target_lower = item
+        item_id, category, device_name, target_upper, target_lower, source_url = item
         latest = get_latest_price(item_id)
         if latest:
             price, record_date = latest
@@ -214,7 +291,8 @@ def cmd_report():
                 'record_date': record_date,
                 'target_upper': target_upper,
                 'target_lower': target_lower,
-                'status': status
+                'status': status,
+                'source_url': source_url
             })
     
     html_content = f"""<!DOCTYPE html>
@@ -227,11 +305,13 @@ def cmd_report():
         h1 {{ color: #333; text-align: center; }}
         table {{ width: 100%; border-collapse: collapse; }}
         th, td {{ padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }}
-        th {{ background-color: #f2f2f2; }}
+        th {{ background-color: #4472C4; color: white; }}
         tr:hover {{ background-color: #f5f5f5; }}
         .warning {{ background-color: #ffebee; }}
         .normal {{ background-color: #e8f5e9; }}
         .footer {{ margin-top: 20px; text-align: center; color: #666; }}
+        a {{ color: #4472C4; text-decoration: none; }}
+        a:hover {{ text-decoration: underline; }}
     </style>
 </head>
 <body>
@@ -246,11 +326,13 @@ def cmd_report():
             <th>目标区间</th>
             <th>记录日期</th>
             <th>状态</th>
+            <th>查询链接</th>
         </tr>
 """
     
     for record in records:
         status_class = "warning" if "⚠️" in record['status'] else "normal"
+        url_link = f'<a href="{record["source_url"]}" target="_blank">查看</a>' if record['source_url'] else '-'
         html_content += f"""        <tr class="{status_class}">
             <td>{record['id']}</td>
             <td>{record['category']}</td>
@@ -259,11 +341,12 @@ def cmd_report():
             <td>¥{record['target_lower']:,.2f} - ¥{record['target_upper']:,.2f}</td>
             <td>{record['record_date']}</td>
             <td>{record['status']}</td>
+            <td>{url_link}</td>
         </tr>
 """
     
     html_content += """    </table>
-    <div class="footer">价格监控系统 v1.0</div>
+    <div class="footer">价格监控系统 v1.1</div>
 </body>
 </html>"""
     
@@ -289,7 +372,7 @@ def cmd_export():
     ws = wb.active
     ws.title = "价格记录"
     
-    headers = ["ID", "品类", "设备名称", "价格", "记录日期", "来源", "目标上限", "目标下限"]
+    headers = ["ID", "品类", "设备名称", "价格", "记录日期", "来源", "目标上限", "目标下限", "查询URL"]
     ws.append(headers)
     
     header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
@@ -302,16 +385,16 @@ def cmd_export():
     warning_fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
     
     for item in items:
-        item_id, category, device_name, target_upper, target_lower = item
+        item_id, category, device_name, target_upper, target_lower, source_url = item
         
-        cursor.execute('SELECT price, record_date, source FROM price_records WHERE item_id = ? ORDER BY record_date DESC', (item_id,))
+        cursor.execute('SELECT price, record_date, source, source_url FROM price_records WHERE item_id = ? ORDER BY record_date DESC', (item_id,))
         for row in cursor.fetchall():
-            price, record_date, source = row
-            ws.append([item_id, category, device_name, price, record_date, source, target_upper, target_lower])
+            price, record_date, source, record_url = row
+            ws.append([item_id, category, device_name, price, record_date, source, target_upper, target_lower, record_url or source_url])
             
             row_num = ws.max_row
             if price > target_upper or (target_lower > 0 and price < target_lower):
-                for col in range(1, 9):
+                for col in range(1, 10):
                     ws.cell(row=row_num, column=col).fill = warning_fill
     
     conn.close()
@@ -352,21 +435,30 @@ def cmd_init():
     print("数据库初始化完成")
 
 def cmd_help():
-    print("""价格监控系统 v1.0
+    print("""价格监控系统 v1.1
 
 使用方法:
-  python monitor.py <command>
+  python monitor.py <command> [options]
 
 命令列表:
   batch    - 批量价格录入（推荐每周一次）
+  scrape   - 自动扫描电商平台价格
   report   - 生成HTML可视化报告
   export   - 生成Excel数据报告
   check    - 查看预警列表
   init     - 初始化数据库
   help     - 显示帮助信息
 
+scrape 命令选项:
+  python monitor.py scrape           - 扫描所有监控项目
+  python monitor.py scrape M001       - 扫描指定项目
+  python monitor.py scrape --auto     - 扫描并自动记录最低价
+
 示例:
   python monitor.py batch    # 按提示输入价格
+  python monitor.py scrape   # 自动扫描电商平台价格
+  python monitor.py scrape M001 M005  # 扫描指定项目
+  python monitor.py scrape --auto     # 扫描并自动记录
   python monitor.py report   # 生成HTML报告
   python monitor.py export   # 生成Excel报告
   python monitor.py check    # 查看预警""")
@@ -380,6 +472,14 @@ def main():
     
     if command == 'batch':
         cmd_batch()
+    elif command == 'scrape':
+        auto_save = '--auto' in sys.argv
+        item_ids = [arg for arg in sys.argv[2:] if not arg.startswith('--')]
+        if item_ids:
+            for item_id in item_ids:
+                cmd_scrape(item_id, auto_save)
+        else:
+            cmd_scrape(None, auto_save)
     elif command == 'report':
         cmd_report()
     elif command == 'export':
