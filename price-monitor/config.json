@@ -1,0 +1,22 @@
+{
+    "smtp": {
+        "server": "smtp.example.com",
+        "port": 587,
+        "username": "your_email@example.com",
+        "password": "your_auth_code",
+        "from_address": "your_email@example.com",
+        "to_addresses": ["admin@example.com"],
+        "use_tls": true
+    },
+    "alert": {
+        "price_increase_threshold": 0.15,
+        "price_decrease_threshold": 0.10
+    },
+    "database": {
+        "path": "data/price_monitor.db"
+    },
+    "logging": {
+        "level": "INFO",
+        "file": "logs/monitor.log"
+    }
+}
