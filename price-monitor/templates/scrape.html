@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}自动扫描{% endblock %}
+
+{% block content %}
+<div class="page-title">自动价格扫描</div>
+
+<div class="form-container">
+    <h3 style="margin-bottom: 24px;">选择扫描项目</h3>
+    
+    <form method="POST">
+        <div class="form-group">
+            <label for="item_id">监控项目</label>
+            <select id="item_id" name="item_id">
+                <option value="all">扫描所有项目</option>
+                {% for item in items %}
+                <option value="{{ item[0] }}">{{ item[0] }} - {{ item[2] }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; font-size: 16px;">
+            🚀 开始扫描
+        </button>
+    </form>
+    
+    <p style="text-align: center; color: #888; margin-top: 16px; font-size: 13px;">
+        扫描将访问京东、阿里巴巴、淘宝等平台获取实时价格
+    </p>
+</div>
+{% endblock %}

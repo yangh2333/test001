@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>价格监控系统 - {% block title %}监控概览{% endblock %}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #4472C4 0%, #2F5597 100%);
+            color: white;
+            padding: 16px 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            font-size: 20px;
+            font-weight: 600;
+        }
+        
+        .nav {
+            display: flex;
+            gap: 20px;
+        }
+        
+        .nav a {
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        
+        .nav a:hover, .nav a.active {
+            background-color: rgba(255,255,255,0.2);
+        }
+        
+        .nav .badge {
+            background-color: #FF6B6B;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            margin-left: 4px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 24px auto;
+            padding: 0 24px;
+        }
+        
+        .page-title {
+            font-size: 24px;
+            margin-bottom: 24px;
+            color: #2F5597;
+        }
+        
+        .stats-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        
+        .stat-card .label {
+            color: #888;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+        
+        .stat-card .value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #2F5597;
+        }
+        
+        .stat-card.warning .value {
+            color: #E74C3C;
+        }
+        
+        .stat-card.success .value {
+            color: #27AE60;
+        }
+        
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+        
+        .table-header {
+            padding: 16px 20px;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .table-header h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 14px 20px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        
+        th {
+            background-color: #4472C4;
+            color: white;
+            font-weight: 500;
+        }
+        
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+        
+        tr.warning {
+            background-color: #fff5f5;
+        }
+        
+        tr.warning:hover {
+            background-color: #ffebee;
+        }
+        
+        .price {
+            font-weight: 600;
+            color: #27AE60;
+        }
+        
+        .price.warning {
+            color: #E74C3C;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .status.normal {
+            background-color: #E8F5E9;
+            color: #27AE60;
+        }
+        
+        .status.warning {
+            background-color: #FFEBEE;
+            color: #E74C3C;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background-color: #4472C4;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #365F9E;
+        }
+        
+        .btn-success {
+            background-color: #27AE60;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background-color: #1E8449;
+        }
+        
+        .btn-danger {
+            background-color: #E74C3C;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background-color: #C0392B;
+        }
+        
+        .btn-outline {
+            background-color: white;
+            color: #4472C4;
+            border: 1px solid #4472C4;
+        }
+        
+        .btn-outline:hover {
+            background-color: #4472C4;
+            color: white;
+        }
+        
+        .form-group {
+            margin-bottom: 16px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+        }
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #4472C4;
+        }
+        
+        .form-container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: white;
+            padding: 32px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        
+        .alert-item {
+            background: white;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border-left: 4px solid #E74C3C;
+        }
+        
+        .alert-item .alert-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .alert-item .alert-id {
+            font-size: 12px;
+            color: #888;
+        }
+        
+        .alert-item .alert-time {
+            font-size: 12px;
+            color: #888;
+        }
+        
+        .alert-item .alert-message {
+            font-size: 14px;
+            color: #333;
+        }
+        
+        .result-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        
+        .result-card h4 {
+            color: #2F5597;
+            margin-bottom: 12px;
+        }
+        
+        .lowest-price {
+            background: linear-gradient(135deg, #27AE60 0%, #1E8449 100%);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+        
+        .lowest-price .label {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+        
+        .lowest-price .price {
+            font-size: 24px;
+            font-weight: 700;
+            color: white;
+        }
+        
+        .price-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .price-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .price-item:last-child {
+            border-bottom: none;
+        }
+        
+        .price-item .source {
+            font-size: 13px;
+            color: #666;
+        }
+        
+        .price-item .price-value {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .price-item a {
+            color: #4472C4;
+            text-decoration: none;
+            font-size: 12px;
+        }
+        
+        .price-item a:hover {
+            text-decoration: underline;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #888;
+        }
+        
+        .empty-state .icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 24px;
+            color: #888;
+            font-size: 13px;
+            margin-top: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <h1>📊 价格监控系统</h1>
+            <div class="nav">
+                <a href="/" {% if request.path == '/' %}class="active"{% endif %}>监控概览</a>
+                <a href="/alerts" {% if request.path == '/alerts' %}class="active"{% endif %}>
+                    预警管理
+                    {% if alert_count > 0 %}<span class="badge">{{ alert_count }}</span>{% endif %}
+                </a>
+                <a href="/scrape" {% if request.path == '/scrape' %}class="active"{% endif %}>自动扫描</a>
+                <a href="/manual-entry" {% if request.path == '/manual-entry' %}class="active"{% endif %}>手动录入</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+    
+    <div class="footer">
+        价格监控系统 v1.2 | 数据中心核心部件价格监控
+    </div>
+    
+    <script>
+        function resolveAlert(alertId) {
+            if (confirm('确定要标记此预警为已处理吗？')) {
+                fetch(`/resolve-alert/${alertId}`, { method: 'POST' })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            document.getElementById(`alert-${alertId}`).remove();
+                        }
+                    });
+            }
+        }
+    </script>
+</body>
+</html>
