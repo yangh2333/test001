@@ -9,65 +9,41 @@
 - Python 3.6+
 - SQLite 数据库
 - Flask（Web框架）
-- requests（网页抓取）
-- beautifulsoup4（HTML解析）
+- Gunicorn（WSGI服务器）
+- Nginx（反向代理）
+- requests/beautifulsoup4（网页抓取）
 - openpyxl（Excel导出）
 
 ## 快速开始
 
-### 1. 安装依赖
+### 本地开发
 
 ```bash
-pip install requests beautifulsoup4 openpyxl flask flask-cors
+pip install -r requirements.txt
+python app.py --port 8080
 ```
 
-### 2. 配置修改
+访问 http://localhost:8080
 
-编辑 `config.json` 配置文件：
+### 阿里云ECS部署
 
-```json
-{
-    "smtp": {
-        "server": "smtp.example.com",
-        "port": 587,
-        "username": "your_email@example.com",
-        "password": "your_auth_code",
-        "from_address": "your_email@example.com",
-        "to_addresses": ["admin@example.com"],
-        "use_tls": true
-    },
-    "alert": {
-        "price_increase_threshold": 0.15,
-        "price_decrease_threshold": 0.10
-    },
-    "database": {
-        "path": "data/price_monitor.db"
-    },
-    "logging": {
-        "level": "INFO",
-        "file": "logs/monitor.log"
-    }
-}
-```
-
-### 3. 启动Web服务
+详细部署指南请查看 [DEPLOY.md](DEPLOY.md)
 
 ```bash
-python app.py
+# 1. 上传代码到服务器
+scp -r price-monitor/* root@<公网IP>:/opt/price-monitor/
+
+# 2. 执行部署脚本
+ssh root@<公网IP>
+cd /opt/price-monitor
+chmod +x deploy/deploy.sh
+./deploy/deploy.sh
+
+# 3. 配置阿里云安全组（开放80端口）
+# 登录阿里云控制台 → ECS → 安全组 → 添加入方向规则：TCP 80
 ```
 
-服务启动后访问: http://localhost:5000
-
-### 4. 命令行操作（可选）
-
-```bash
-python monitor.py init     # 初始化数据库
-python monitor.py batch    # 批量价格录入
-python monitor.py scrape   # 自动扫描电商平台价格
-python monitor.py report   # 生成HTML报告
-python monitor.py export   # 生成Excel报告
-python monitor.py check    # 查看预警
-```
+访问 http://<您的公网IP>/
 
 ## Web界面功能
 
