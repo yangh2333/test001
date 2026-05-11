@@ -282,6 +282,17 @@ def api_resolve_alert(alert_id):
 def health():
     return jsonify({'status': 'healthy', 'timestamp': datetime.now().isoformat()})
 
+def create_app():
+    return app
+
 if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser(description='价格监控系统')
+    parser.add_argument('--port', type=int, default=int(os.environ.get('PORT', 8080)),
+                       help='监听端口 (默认: 8080)')
+    parser.add_argument('--host', type=str, default='0.0.0.0',
+                       help='监听地址 (默认: 0.0.0.0)')
+    args = parser.parse_args()
+    
     init_database()
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host=args.host, port=args.port, debug=False)

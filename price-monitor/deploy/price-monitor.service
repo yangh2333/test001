@@ -1,0 +1,24 @@
+[Unit]
+Description=Price Monitor System
+After=network.target
+
+[Service]
+Type=notify
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/price-monitor
+Environment="PATH=/opt/price-monitor/venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="PORT=8080"
+ExecStart=/opt/price-monitor/venv/bin/gunicorn \
+    --workers 2 \
+    --bind 127.0.0.1:8080 \
+    --timeout 120 \
+    --access-logfile /opt/price-monitor/logs/access.log \
+    --error-logfile /opt/price-monitor/logs/error.log \
+    --log-level info \
+    app:app
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
