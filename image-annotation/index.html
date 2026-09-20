@@ -552,11 +552,20 @@
     const inner = card.querySelector('.img-inner');
     const zoomLabel = card.querySelector('.zoom-level');
     let scale = 1;
+    let panX = 0, panY = 0;
+    let isDragging = false;
+    let dragStartX = 0, dragStartY = 0;
+    let panStartX = 0, panStartY = 0;
+    let didDrag = false;
 
     function applyScale() {
-      inner.style.transform = `translate(-50%, -50%) scale(${scale})`;
+      // 缩放回到 1 时重置位移
+      if (scale === 1) { panX = 0; panY = 0; }
+      inner.style.transform = `translate(calc(-50% + ${panX}px), calc(-50% + ${panY}px)) scale(${scale})`;
       inner.style.setProperty('--marker-scale', (1 / scale).toFixed(4));
       zoomLabel.textContent = Math.round(scale * 100) + '%';
+      // 放大时显示可拖动光标
+      stage.style.cursor = scale > 1 ? 'grab' : 'crosshair';
     }
 
     stage.addEventListener('wheel', (e) => {
@@ -566,7 +575,39 @@
       applyScale();
     }, { passive: false });
 
+    // 拖动（平移）图片
+    stage.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.marker') || e.target.closest('.zoom-btn') || e.target.closest('.zoom-controls')) return;
+      if (scale <= 1) return; // 仅放大后可拖动
+      isDragging = true;
+      didDrag = false;
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
+      panStartX = panX;
+      panStartY = panY;
+      stage.style.cursor = 'grabbing';
+      e.preventDefault();
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - dragStartX;
+      const dy = e.clientY - dragStartY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didDrag = true;
+      panX = panStartX + dx;
+      panY = panStartY + dy;
+      inner.style.transform = `translate(calc(-50% + ${panX}px), calc(-50% + ${panY}px)) scale(${scale})`;
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        stage.style.cursor = scale > 1 ? 'grab' : 'crosshair';
+      }
+    });
+
     stage.addEventListener('click', (e) => {
+      if (didDrag) { didDrag = false; return; } // 拖动后不添加标注
       if (e.target.closest('.marker')) return;
       const rect = inner.getBoundingClientRect();
       const x = ((e.clientX - rect.left) / rect.width) * 100;
