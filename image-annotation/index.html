@@ -153,29 +153,44 @@
     transform: translate(-50%, -50%);
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 4px;
-    padding: 3px 10px;
-    border-radius: 14px;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border-radius: 50%;
     color: #fff;
     font-size: 12px;
     font-weight: 600;
     white-space: nowrap;
     cursor: pointer;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
-    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+    transition: width 0.2s, height 0.2s, padding 0.2s, border-radius 0.2s, box-shadow 0.2s;
     z-index: 10;
+    overflow: hidden;
   }
   .marker:hover {
-    transform: translate(-50%, -50%) scale(1.25);
+    width: auto;
+    height: auto;
+    padding: 3px 10px;
+    border-radius: 14px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.35);
     z-index: 20;
+    overflow: visible;
   }
   .marker .dot {
     width: 8px;
     height: 8px;
     border-radius: 50%;
     background: #fff;
+    flex-shrink: 0;
   }
+  .marker .mtext,
+  .marker .del,
+  .marker .edit-btn { display: none; }
+  .marker:hover .mtext,
+  .marker:hover .del,
+  .marker:hover .edit-btn { display: inline-block; }
   .marker.problem  { background: #ef4444; }
   .marker.risk     { background: #f59e0b; }
   .marker.help     { background: #3b82f6; }
@@ -190,7 +205,6 @@
     border-radius: 50%;
     background: rgba(255,255,255,0.3);
     font-size: 12px;
-    display: none;
   }
   .marker .edit-btn {
     margin-left: 2px;
@@ -201,10 +215,7 @@
     border-radius: 50%;
     background: rgba(255,255,255,0.3);
     font-size: 11px;
-    display: none;
   }
-  .marker:hover .del,
-  .marker:hover .edit-btn { display: inline-block; }
 
   /* 编辑面板 */
   .edit-panel {
@@ -327,7 +338,7 @@
   <button class="type-btn sync" data-type="sync"><span class="tag">S</span>信息同步</button>
   <button class="action-btn" id="clearAll">清空全部标注</button>
   <button class="action-btn" id="exportData">导出标注 JSON</button>
-  <span class="tip">提示：先选类型再点图片添加标注；点击标注或 ✎ 可编辑；点 × 删除；回车保存</span>
+  <span class="tip">提示：先选类型再点图片添加标注；鼠标移到小点上展开标签；点击可编辑，× 删除</span>
 </div>
 
 <div class="gallery" id="gallery"></div>
