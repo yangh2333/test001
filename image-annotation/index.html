@@ -411,7 +411,14 @@
 </head>
 <body>
 
-<div class="header">
+<div class="breadcrumb" id="breadcrumb"></div>
+
+<div class="gallery" id="gallery"></div>
+
+<!-- 隐藏的文件上传，用于添加子图 -->
+<input type="file" id="childImgInput" accept="image/*" style="display:none">
+
+<div class="header" style="margin-top:30px">
   <h1>图片标注工具</h1>
   <p>选择标注类型后，在图片任意位置点击添加标志 · 鼠标滚轮缩放 · 悬停标志可放大</p>
 </div>
@@ -427,13 +434,6 @@
   <button class="action-btn" id="exportData">导出标注 JSON</button>
   <span class="tip">提示：先选类型再点图片添加标注；鼠标移到小点上展开标签；点击可编辑，× 删除；▷ 进入下一级</span>
 </div>
-
-<div class="breadcrumb" id="breadcrumb"></div>
-
-<div class="gallery" id="gallery"></div>
-
-<!-- 隐藏的文件上传，用于添加子图 -->
-<input type="file" id="childImgInput" accept="image/*" style="display:none">
 
 <script>
   // 顶层图片（每张图自带 markers 数组）
