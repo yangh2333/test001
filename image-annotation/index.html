@@ -170,13 +170,8 @@
     overflow: hidden;
   }
   .marker:hover {
-    width: auto;
-    height: auto;
-    padding: 3px 10px;
-    border-radius: 14px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.35);
     z-index: 20;
-    overflow: visible;
   }
   .marker .dot {
     width: 8px;
@@ -185,12 +180,13 @@
     background: #fff;
     flex-shrink: 0;
   }
-  .marker .mtext,
+  .marker .mtext { display: none; }
   .marker .del,
-  .marker .edit-btn { display: none; }
-  .marker:hover .mtext,
+  .marker .edit-btn,
+  .marker .enter-btn { display: none; }
   .marker:hover .del,
-  .marker:hover .edit-btn { display: inline-block; }
+  .marker:hover .edit-btn,
+  .marker:hover .enter-btn { display: inline-block; }
   .marker.problem  { background: #ef4444; }
   .marker.risk     { background: #f59e0b; }
   .marker.help     { background: #3b82f6; }
@@ -216,6 +212,66 @@
     background: rgba(255,255,255,0.3);
     font-size: 11px;
   }
+
+  /* 标注悬停提示框 */
+  .marker-tooltip {
+    position: fixed;
+    z-index: 500;
+    max-width: 80vw;
+    min-width: 200px;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.22);
+    padding: 12px 14px;
+    pointer-events: auto;
+  }
+  .marker-tooltip .tt-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .marker-tooltip .tt-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .marker-tooltip .tt-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #6b7280;
+  }
+  .marker-tooltip .tt-text {
+    font-size: 13px;
+    line-height: 1.6;
+    color: #1f2937;
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    max-height: 50vh;
+    overflow-y: auto;
+  }
+  .marker-tooltip .tt-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid #f0f0f0;
+  }
+  .marker-tooltip .tt-btn {
+    padding: 4px 10px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    color: #fff;
+  }
+  .marker-tooltip .tt-btn.enter { background: #8b5cf6; }
+  .marker-tooltip .tt-btn.edit { background: #3b82f6; }
+  .marker-tooltip .tt-btn.del { background: #ef4444; }
 
   /* 编辑面板 */
   .edit-panel {
@@ -243,15 +299,22 @@
     font-size: 12px;
     margin-bottom: 4px;
   }
-  .edit-panel input[type="text"] {
+  .edit-panel input[type="text"],
+  .edit-panel textarea {
     width: 100%;
     padding: 6px 10px;
     border: 1px solid #d1d5db;
     border-radius: 6px;
     font-size: 13px;
     outline: none;
+    box-sizing: border-box;
+    font-family: inherit;
+    line-height: 1.5;
+    resize: vertical;
   }
-  .edit-panel input[type="text"]:focus { border-color: #3b82f6; }
+  .edit-panel textarea { min-height: 90px; }
+  .edit-panel input[type="text"]:focus,
+  .edit-panel textarea:focus { border-color: #3b82f6; }
   .edit-panel select {
     width: 100%;
     padding: 6px 10px;
@@ -722,7 +785,82 @@
       deleteMarker(img, m.id);
     });
 
+    // 悬停显示提示框（完整文本自动换行，宽度 80vw）
+    let tooltipTimer = null;
+    el.addEventListener('mouseenter', () => {
+      clearTimeout(tooltipTimer);
+      showMarkerTooltip(img, m, el);
+    });
+    el.addEventListener('mouseleave', () => {
+      tooltipTimer = setTimeout(() => hideMarkerTooltip(), 200);
+    });
+
     inner.appendChild(el);
+  }
+
+  // 显示标注提示框
+  let activeTooltip = null;
+  function showMarkerTooltip(img, m, anchorEl) {
+    hideMarkerTooltip();
+    const tip = document.createElement('div');
+    tip.className = 'marker-tooltip';
+    const color = typeMap[m.type].color;
+    tip.innerHTML = `
+      <div class="tt-head">
+        <span class="tt-dot" style="background:${color}"></span>
+        <span class="tt-label">${typeMap[m.type].label}</span>
+      </div>
+      <div class="tt-text"></div>
+      <div class="tt-actions">
+        <button class="tt-btn enter">▷ 进入下一级</button>
+        <button class="tt-btn edit">✎ 编辑</button>
+        <button class="tt-btn del">× 删除</button>
+      </div>
+    `;
+    tip.querySelector('.tt-text').textContent = m.text;
+    tip.querySelector('.tt-btn.enter').addEventListener('click', (e) => {
+      e.stopPropagation();
+      hideMarkerTooltip();
+      enterMarker(m);
+    });
+    tip.querySelector('.tt-btn.edit').addEventListener('click', (e) => {
+      e.stopPropagation();
+      hideMarkerTooltip();
+      openEditPanel(img, m.id, anchorEl);
+    });
+    tip.querySelector('.tt-btn.del').addEventListener('click', (e) => {
+      e.stopPropagation();
+      hideMarkerTooltip();
+      deleteMarker(img, m.id);
+    });
+    tip.addEventListener('mouseenter', () => { if (activeTooltip === tip) clearTimeout(tip._timer); });
+    tip.addEventListener('mouseleave', () => { tip._timer = setTimeout(() => hideMarkerTooltip(), 200); });
+
+    document.body.appendChild(tip);
+
+    // 定位：优先在标注下方，超出视口则放上方
+    const rect = anchorEl.getBoundingClientRect();
+    let top = rect.bottom + 8;
+    let left = rect.left + rect.width / 2;
+    // 先放入 DOM 以获取尺寸
+    const tipRect = tip.getBoundingClientRect();
+    left = left - tipRect.width / 2;
+    if (left < 8) left = 8;
+    if (left + tipRect.width > window.innerWidth - 8) left = window.innerWidth - tipRect.width - 8;
+    if (top + tipRect.height > window.innerHeight - 8) {
+      top = rect.top - tipRect.height - 8;
+    }
+    tip.style.top = Math.max(8, top) + 'px';
+    tip.style.left = left + 'px';
+
+    activeTooltip = tip;
+  }
+
+  function hideMarkerTooltip() {
+    if (activeTooltip) {
+      activeTooltip.remove();
+      activeTooltip = null;
+    }
   }
 
   // 进入标注的下一级
@@ -756,8 +894,8 @@
 
     panel.innerHTML = `
       <div class="ep-row">
-        <label>标注文本</label>
-        <input type="text" class="ep-text" value="${m.text.replace(/"/g, '&quot;')}">
+        <label>标注文本（最多 2000 字）</label>
+        <textarea class="ep-text" maxlength="2000" rows="6">${m.text.replace(/</g, '&lt;')}</textarea>
       </div>
       <div class="ep-row">
         <label>标注类型</label>
@@ -776,9 +914,9 @@
     const rect = anchorEl.getBoundingClientRect();
     let top = rect.bottom + 6;
     let left = rect.left;
-    const pw = 260;
+    const pw = 420;
     if (left + pw > window.innerWidth - 10) left = window.innerWidth - pw - 10;
-    if (top + 180 > window.innerHeight) top = rect.top - 186;
+    if (top + 280 > window.innerHeight) top = rect.top - 286;
     panel.style.top = top + 'px';
     panel.style.left = left + 'px';
 
@@ -788,7 +926,9 @@
     textInput.select();
 
     function save() {
-      m.text = textInput.value.trim() || typeMap[typeSelect.value].label;
+      let val = textInput.value.trim();
+      if (val.length > 2000) val = val.substring(0, 2000);
+      m.text = val || typeMap[typeSelect.value].label;
       m.type = typeSelect.value;
       anchorEl.className = `marker ${m.type}`;
       anchorEl.querySelector('.mtext').textContent = m.text;
@@ -806,10 +946,10 @@
       enterMarker(m);
     });
 
-    // 中文输入修复：IME 组合中忽略回车
+    // 中文输入修复：IME 组合中忽略回车；textarea 回车换行，Ctrl+Enter 保存
     textInput.addEventListener('keydown', (e) => {
       if (e.isComposing || e.keyCode === 229) return;
-      if (e.key === 'Enter') save();
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); save(); }
       else if (e.key === 'Escape') closeEditPanel();
     });
 
