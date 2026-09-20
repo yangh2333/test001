@@ -192,7 +192,84 @@
     font-size: 12px;
     display: none;
   }
-  .marker:hover .del { display: inline-block; }
+  .marker .edit-btn {
+    margin-left: 2px;
+    width: 16px;
+    height: 16px;
+    line-height: 15px;
+    text-align: center;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.3);
+    font-size: 11px;
+    display: none;
+  }
+  .marker:hover .del,
+  .marker:hover .edit-btn { display: inline-block; }
+
+  /* 编辑面板 */
+  .edit-panel {
+    position: fixed;
+    z-index: 1000;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+    padding: 14px;
+    width: 260px;
+    font-size: 13px;
+  }
+  .edit-panel::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: 20px;
+    border: 8px solid transparent;
+    border-bottom-color: #fff;
+  }
+  .edit-panel .ep-row { margin-bottom: 10px; }
+  .edit-panel label {
+    display: block;
+    color: #6b7280;
+    font-size: 12px;
+    margin-bottom: 4px;
+  }
+  .edit-panel input[type="text"] {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 13px;
+    outline: none;
+  }
+  .edit-panel input[type="text"]:focus { border-color: #3b82f6; }
+  .edit-panel select {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 13px;
+    outline: none;
+    background: #fff;
+  }
+  .edit-panel .ep-actions {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+    margin-top: 12px;
+  }
+  .edit-panel .ep-btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .edit-panel .ep-save { background: #3b82f6; color: #fff; }
+  .edit-panel .ep-save:hover { background: #2563eb; }
+  .edit-panel .ep-del { background: #ef4444; color: #fff; }
+  .edit-panel .ep-del:hover { background: #dc2626; }
+  .edit-panel .ep-cancel { background: #e5e7eb; color: #374151; }
+  .edit-panel .ep-cancel:hover { background: #d1d5db; }
 
   .zoom-controls {
     position: absolute;
@@ -250,7 +327,7 @@
   <button class="type-btn sync" data-type="sync"><span class="tag">S</span>信息同步</button>
   <button class="action-btn" id="clearAll">清空全部标注</button>
   <button class="action-btn" id="exportData">导出标注 JSON</button>
-  <span class="tip">提示：先选类型再点图片；鼠标悬停标志可放大查看；点 × 删除</span>
+  <span class="tip">提示：先选类型再点图片添加标注；点击标注或 ✎ 可编辑；点 × 删除；回车保存</span>
 </div>
 
 <div class="gallery" id="gallery"></div>
@@ -355,8 +432,15 @@
   function addMarker(imgId, type, x, y) {
     const list = markers[imgId];
     const id = 'm_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
-    list.push({ id, type, x, y });
+    list.push({ id, type, x, y, text: typeMap[type].label });
     renderMarker(imgId, list[list.length - 1]);
+    updateCount(imgId);
+  }
+
+  function deleteMarker(imgId, id) {
+    markers[imgId] = markers[imgId].filter(m => m.id !== id);
+    const el = document.querySelector(`.marker[data-mid="${id}"]`);
+    if (el) el.remove();
     updateCount(imgId);
   }
 
@@ -367,17 +451,118 @@
     el.dataset.mid = m.id;
     el.style.left = m.x + '%';
     el.style.top = m.y + '%';
-    el.innerHTML = `<span class="dot"></span>${typeMap[m.type].label}<span class="del" title="删除">×</span>`;
+    el.innerHTML = `<span class="dot"></span><span class="mtext"></span><span class="edit-btn" title="编辑">✎</span><span class="del" title="删除">×</span>`;
+    el.querySelector('.mtext').textContent = m.text;
 
+    // 点击标注主体打开编辑面板
+    el.addEventListener('click', (e) => {
+      if (e.target.closest('.del') || e.target.closest('.edit-btn')) return;
+      e.stopPropagation();
+      openEditPanel(imgId, m.id, el);
+    });
+
+    // 编辑按钮
+    el.querySelector('.edit-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      openEditPanel(imgId, m.id, el);
+    });
+
+    // 快速删除按钮
     el.querySelector('.del').addEventListener('click', (e) => {
       e.stopPropagation();
-      markers[imgId] = markers[imgId].filter(x => x.id !== m.id);
-      el.remove();
-      updateCount(imgId);
+      deleteMarker(imgId, m.id);
     });
 
     stage.appendChild(el);
   }
+
+  // 打开编辑面板
+  let activePanel = null;
+  function openEditPanel(imgId, markerId, anchorEl) {
+    closeEditPanel();
+    const m = markers[imgId].find(x => x.id === markerId);
+    if (!m) return;
+
+    const panel = document.createElement('div');
+    panel.className = 'edit-panel';
+
+    const typeOptions = Object.entries(typeMap)
+      .map(([key, v]) => `<option value="${key}" ${key === m.type ? 'selected' : ''}>${v.label}</option>`)
+      .join('');
+
+    panel.innerHTML = `
+      <div class="ep-row">
+        <label>标注文本</label>
+        <input type="text" class="ep-text" value="${m.text.replace(/"/g, '&quot;')}">
+      </div>
+      <div class="ep-row">
+        <label>标注类型</label>
+        <select class="ep-type">${typeOptions}</select>
+      </div>
+      <div class="ep-actions">
+        <button class="ep-btn ep-del">删除</button>
+        <button class="ep-btn ep-cancel">取消</button>
+        <button class="ep-btn ep-save">保存</button>
+      </div>
+    `;
+
+    document.body.appendChild(panel);
+
+    // 定位面板到标注附近
+    const rect = anchorEl.getBoundingClientRect();
+    let top = rect.bottom + 6;
+    let left = rect.left;
+    // 防止超出视窗
+    const pw = 260;
+    if (left + pw > window.innerWidth - 10) left = window.innerWidth - pw - 10;
+    if (top + 180 > window.innerHeight) top = rect.top - 186;
+    panel.style.top = top + 'px';
+    panel.style.left = left + 'px';
+
+    const textInput = panel.querySelector('.ep-text');
+    const typeSelect = panel.querySelector('.ep-type');
+    textInput.focus();
+    textInput.select();
+
+    function save() {
+      const newText = textInput.value.trim() || typeMap[typeSelect.value].label;
+      const newType = typeSelect.value;
+      m.text = newText;
+      m.type = newType;
+      // 更新 DOM
+      anchorEl.className = `marker ${newType}`;
+      anchorEl.querySelector('.mtext').textContent = newText;
+      closeEditPanel();
+    }
+
+    panel.querySelector('.ep-save').addEventListener('click', save);
+    panel.querySelector('.ep-cancel').addEventListener('click', closeEditPanel);
+    panel.querySelector('.ep-del').addEventListener('click', () => {
+      deleteMarker(imgId, markerId);
+      closeEditPanel();
+    });
+
+    textInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') save();
+      else if (e.key === 'Escape') closeEditPanel();
+    });
+
+    activePanel = panel;
+  }
+
+  function closeEditPanel() {
+    if (activePanel) {
+      activePanel.remove();
+      activePanel = null;
+    }
+  }
+
+  // 点击页面其他地方关闭编辑面板
+  document.addEventListener('click', (e) => {
+    if (activePanel && !e.target.closest('.edit-panel') && !e.target.closest('.marker')) {
+      closeEditPanel();
+    }
+  });
 
   function updateCount(imgId) {
     const cnt = markers[imgId].length;
