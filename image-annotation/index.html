@@ -57,6 +57,7 @@
   .type-btn.risk    { background: #f59e0b; }
   .type-btn.help    { background: #3b82f6; }
   .type-btn.decision{ background: #10b981; }
+  .type-btn.sync    { background: #8b5cf6; }
   .type-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
   .type-btn.active {
     border-color: #111827;
@@ -179,6 +180,7 @@
   .marker.risk     { background: #f59e0b; }
   .marker.help     { background: #3b82f6; }
   .marker.decision { background: #10b981; }
+  .marker.sync     { background: #8b5cf6; }
   .marker .del {
     margin-left: 2px;
     width: 16px;
@@ -245,6 +247,7 @@
   <button class="type-btn risk" data-type="risk"><span class="tag">R</span>风险</button>
   <button class="type-btn help" data-type="help"><span class="tag">H</span>求助</button>
   <button class="type-btn decision" data-type="decision"><span class="tag">D</span>决策</button>
+  <button class="type-btn sync" data-type="sync"><span class="tag">S</span>信息同步</button>
   <button class="action-btn" id="clearAll">清空全部标注</button>
   <button class="action-btn" id="exportData">导出标注 JSON</button>
   <span class="tip">提示：先选类型再点图片；鼠标悬停标志可放大查看；点 × 删除</span>
@@ -264,7 +267,8 @@
     problem:  { label: '问题', color: '#ef4444' },
     risk:     { label: '风险', color: '#f59e0b' },
     help:     { label: '求助', color: '#3b82f6' },
-    decision: { label: '决策', color: '#10b981' }
+    decision: { label: '决策', color: '#10b981' },
+    sync:     { label: '信息同步', color: '#8b5cf6' }
   };
 
   let currentType = 'problem';
