@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>图片标注工具</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    background: #f0f2f5;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .header {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .header h1 {
+    color: #1f2937;
+    font-size: 24px;
+    margin-bottom: 8px;
+  }
+  .header p {
+    color: #6b7280;
+    font-size: 14px;
+  }
+  .toolbar {
+    background: #fff;
+    border-radius: 10px;
+    padding: 14px 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    justify-content: center;
+  }
+  .toolbar .label {
+    font-size: 14px;
+    color: #374151;
+    font-weight: 600;
+  }
+  .type-btn {
+    padding: 8px 16px;
+    border: 2px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    transition: all 0.2s;
+    user-select: none;
+  }
+  .type-btn.problem { background: #ef4444; }
+  .type-btn.risk    { background: #f59e0b; }
+  .type-btn.help    { background: #3b82f6; }
+  .type-btn.decision{ background: #10b981; }
+  .type-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
+  .type-btn.active {
+    border-color: #111827;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  }
+  .type-btn .tag {
+    font-size: 11px;
+    background: rgba(255,255,255,0.25);
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-right: 4px;
+  }
+  .action-btn {
+    padding: 8px 14px;
+    border: 1px solid #d1d5db;
+    background: #fff;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #374151;
+    transition: all 0.2s;
+  }
+  .action-btn:hover { background: #f3f4f6; }
+  .tip {
+    font-size: 12px;
+    color: #9ca3af;
+    margin-left: 8px;
+  }
+
+  .gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+    gap: 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  .card {
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    transition: box-shadow 0.3s;
+  }
+  .card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.12); }
+  .card-title {
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+    border-bottom: 1px solid #f3f4f6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .card-title .badge {
+    background: #e5e7eb;
+    color: #6b7280;
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+  .img-stage {
+    position: relative;
+    width: 100%;
+    height: 300px;
+    overflow: hidden;
+    background: repeating-conic-gradient(#f9fafb 0% 25%, #e5e7eb 0% 50%) 50% / 20px 20px;
+    cursor: crosshair;
+    user-select: none;
+  }
+  .img-inner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(1);
+    transform-origin: center center;
+    transition: transform 0.25s ease;
+    max-width: 100%;
+    max-height: 100%;
+  }
+  .img-stage:hover .img-inner {
+    transform: translate(-50%, -50%) scale(1.05);
+  }
+  .img-stage img {
+    display: block;
+    max-width: 100%;
+    max-height: 280px;
+    pointer-events: none;
+  }
+  .marker {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 14px;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    transition: transform 0.2s, box-shadow 0.2s;
+    z-index: 10;
+  }
+  .marker:hover {
+    transform: translate(-50%, -50%) scale(1.25);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+    z-index: 20;
+  }
+  .marker .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #fff;
+  }
+  .marker.problem  { background: #ef4444; }
+  .marker.risk     { background: #f59e0b; }
+  .marker.help     { background: #3b82f6; }
+  .marker.decision { background: #10b981; }
+  .marker .del {
+    margin-left: 2px;
+    width: 16px;
+    height: 16px;
+    line-height: 14px;
+    text-align: center;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.3);
+    font-size: 12px;
+    display: none;
+  }
+  .marker:hover .del { display: inline-block; }
+
+  .zoom-controls {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    display: flex;
+    gap: 4px;
+    z-index: 5;
+  }
+  .zoom-btn {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.9);
+    color: #374151;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+  }
+  .zoom-btn:hover { background: #fff; }
+  .zoom-level {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    background: rgba(0,0,0,0.5);
+    color: #fff;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    z-index: 5;
+  }
+  .empty-hint {
+    color: #9ca3af;
+    font-size: 12px;
+    text-align: center;
+    padding: 8px;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>图片标注工具</h1>
+  <p>选择标注类型后，在图片任意位置点击添加标志 · 鼠标滚轮缩放 · 悬停标志可放大</p>
+</div>
+
+<div class="toolbar">
+  <span class="label">标注类型：</span>
+  <button class="type-btn problem active" data-type="problem"><span class="tag">P</span>问题</button>
+  <button class="type-btn risk" data-type="risk"><span class="tag">R</span>风险</button>
+  <button class="type-btn help" data-type="help"><span class="tag">H</span>求助</button>
+  <button class="type-btn decision" data-type="decision"><span class="tag">D</span>决策</button>
+  <button class="action-btn" id="clearAll">清空全部标注</button>
+  <button class="action-btn" id="exportData">导出标注 JSON</button>
+  <span class="tip">提示：先选类型再点图片；鼠标悬停标志可放大查看；点 × 删除</span>
+</div>
+
+<div class="gallery" id="gallery"></div>
+
+<script>
+  const images = [
+    { id: 1, name: '项目管理程序 Logo', src: 'images/6934443c-e6c5-44d4-8287-2ecbf63aa3f7_项目管理程序logo.png' },
+    { id: 2, name: '企业微信截图', src: 'images/4eb756e1-1a2d-4855-93a3-7eae66374946_企业微信截图_17441189036649.png' },
+    { id: 3, name: '高德打车电子发票', src: 'images/e2e0083f-795d-4708-8d82-a5b235fa4ae1_【博约出行-28.71元-2个行程】高德打车电子发票_00.png' },
+    { id: 4, name: '屏幕截图', src: 'images/e695571d-aba8-4b51-8c6e-c39ac547eebe_屏幕截图 2024-10-05 153358.png' }
+  ];
+
+  const typeMap = {
+    problem:  { label: '问题', color: '#ef4444' },
+    risk:     { label: '风险', color: '#f59e0b' },
+    help:     { label: '求助', color: '#3b82f6' },
+    decision: { label: '决策', color: '#10b981' }
+  };
+
+  let currentType = 'problem';
+
+  // 标注数据：{ imgId: [{id, type, x, y, text}] }
+  // x, y 为相对图片的百分比坐标 (0-100)
+  const markers = {};
+  images.forEach(img => markers[img.id] = []);
+
+  // 类型按钮切换
+  document.querySelectorAll('.type-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentType = btn.dataset.type;
+    });
+  });
+
+  const gallery = document.getElementById('gallery');
+
+  images.forEach(img => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="card-title">
+        <span>${img.name}</span>
+        <span class="badge" id="count-${img.id}">0 个标注</span>
+      </div>
+      <div class="img-stage" data-img-id="${img.id}">
+        <div class="img-inner" id="inner-${img.id}">
+          <img src="${img.src}" alt="${img.name}" draggable="false">
+        </div>
+        <div class="zoom-level" id="zoom-${img.id}">100%</div>
+        <div class="zoom-controls">
+          <button class="zoom-btn" data-action="out" data-img="${img.id}">−</button>
+          <button class="zoom-btn" data-action="reset" data-img="${img.id}">⟳</button>
+          <button class="zoom-btn" data-action="in" data-img="${img.id}">+</button>
+        </div>
+      </div>
+    `;
+    gallery.appendChild(card);
+
+    const stage = card.querySelector('.img-stage');
+    const inner = card.querySelector('.img-inner');
+    const zoomLabel = card.querySelector('.zoom-level');
+    let scale = 1;
+
+    function applyScale() {
+      inner.style.transform = `translate(-50%, -50%) scale(${scale})`;
+      zoomLabel.textContent = Math.round(scale * 100) + '%';
+    }
+
+    // 滚轮缩放
+    stage.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -0.1 : 0.1;
+      scale = Math.min(Math.max(scale + delta, 0.3), 5);
+      applyScale();
+    }, { passive: false });
+
+    // 点击添加标注
+    stage.addEventListener('click', (e) => {
+      // 如果点击的是标注本身，不添加
+      if (e.target.closest('.marker')) return;
+      const rect = stage.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / rect.width) * 100;
+      const y = ((e.clientY - rect.top) / rect.height) * 100;
+      addMarker(img.id, currentType, x, y);
+    });
+
+    // 缩放按钮
+    card.querySelectorAll('.zoom-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const action = btn.dataset.action;
+        if (action === 'in') scale = Math.min(scale + 0.2, 5);
+        else if (action === 'out') scale = Math.max(scale - 0.2, 0.3);
+        else scale = 1;
+        applyScale();
+      });
+    });
+  });
+
+  function addMarker(imgId, type, x, y) {
+    const list = markers[imgId];
+    const id = 'm_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+    list.push({ id, type, x, y });
+    renderMarker(imgId, list[list.length - 1]);
+    updateCount(imgId);
+  }
+
+  function renderMarker(imgId, m) {
+    const stage = document.querySelector(`.img-stage[data-img-id="${imgId}"]`);
+    const el = document.createElement('div');
+    el.className = `marker ${m.type}`;
+    el.dataset.mid = m.id;
+    el.style.left = m.x + '%';
+    el.style.top = m.y + '%';
+    el.innerHTML = `<span class="dot"></span>${typeMap[m.type].label}<span class="del" title="删除">×</span>`;
+
+    el.querySelector('.del').addEventListener('click', (e) => {
+      e.stopPropagation();
+      markers[imgId] = markers[imgId].filter(x => x.id !== m.id);
+      el.remove();
+      updateCount(imgId);
+    });
+
+    stage.appendChild(el);
+  }
+
+  function updateCount(imgId) {
+    const cnt = markers[imgId].length;
+    document.getElementById('count-' + imgId).textContent = cnt + ' 个标注';
+  }
+
+  // 清空全部
+  document.getElementById('clearAll').addEventListener('click', () => {
+    if (!confirm('确定清空所有图片的标注吗？')) return;
+    images.forEach(img => {
+      markers[img.id] = [];
+      document.querySelectorAll(`.img-stage[data-img-id="${img.id}"] .marker`).forEach(el => el.remove());
+      updateCount(img.id);
+    });
+  });
+
+  // 导出 JSON
+  document.getElementById('exportData').addEventListener('click', () => {
+    const data = images.map(img => ({
+      id: img.id,
+      name: img.name,
+      markers: markers[img.id]
+    }));
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'annotations.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+</script>
+
+</body>
+</html>
