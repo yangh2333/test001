@@ -150,7 +150,7 @@
   }
   .marker {
     position: absolute;
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%) scale(var(--marker-scale, 1));
     display: flex;
     align-items: center;
     justify-content: center;
@@ -406,6 +406,8 @@
 
     function applyScale() {
       inner.style.transform = `translate(-50%, -50%) scale(${scale})`;
+      // 标注反向缩放，保持屏幕尺寸不变，位置随图片移动
+      inner.style.setProperty('--marker-scale', (1 / scale).toFixed(4));
       zoomLabel.textContent = Math.round(scale * 100) + '%';
     }
 
@@ -421,7 +423,8 @@
     stage.addEventListener('click', (e) => {
       // 如果点击的是标注本身，不添加
       if (e.target.closest('.marker')) return;
-      const rect = stage.getBoundingClientRect();
+      // 以 .img-inner 为坐标系，标注随图片一起缩放
+      const rect = inner.getBoundingClientRect();
       const x = ((e.clientX - rect.left) / rect.width) * 100;
       const y = ((e.clientY - rect.top) / rect.height) * 100;
       addMarker(img.id, currentType, x, y);
@@ -438,6 +441,9 @@
         applyScale();
       });
     });
+
+    // 初始化缩放变量
+    applyScale();
   });
 
   function addMarker(imgId, type, x, y) {
@@ -456,7 +462,7 @@
   }
 
   function renderMarker(imgId, m) {
-    const stage = document.querySelector(`.img-stage[data-img-id="${imgId}"]`);
+    const inner = document.querySelector(`#inner-${imgId}`);
     const el = document.createElement('div');
     el.className = `marker ${m.type}`;
     el.dataset.mid = m.id;
@@ -484,7 +490,7 @@
       deleteMarker(imgId, m.id);
     });
 
-    stage.appendChild(el);
+    inner.appendChild(el);
   }
 
   // 打开编辑面板
