@@ -187,6 +187,27 @@
   .marker:hover .del,
   .marker:hover .edit-btn,
   .marker:hover .enter-btn { display: inline-block; }
+
+  /* 展开状态：左键点击展开，显示文本和按钮 */
+  .marker.expanded {
+    width: auto;
+    max-width: 60vw;
+    height: auto;
+    padding: 4px 10px;
+    border-radius: 14px;
+    overflow: visible;
+    white-space: normal;
+  }
+  .marker.expanded .mtext {
+    display: inline;
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    line-height: 1.4;
+  }
+  .marker.expanded .del,
+  .marker.expanded .edit-btn,
+  .marker.expanded .enter-btn { display: inline-block; }
   .marker.problem  { background: #ef4444; }
   .marker.risk     { background: #f59e0b; }
   .marker.help     { background: #3b82f6; }
@@ -760,11 +781,18 @@
       el.querySelector('.child-count').textContent = m.children.length;
     }
 
-    // 点击主体打开编辑面板
+    // 左键点击：展开/缩回标注
     el.addEventListener('click', (e) => {
       if (e.target.closest('.del') || e.target.closest('.edit-btn') || e.target.closest('.enter-btn')) return;
       e.stopPropagation();
-      openEditPanel(img, m.id, el);
+      el.classList.toggle('expanded');
+    });
+
+    // 右键点击：缩回小图标
+    el.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      el.classList.remove('expanded');
     });
 
     // 进入下一级
@@ -785,9 +813,10 @@
       deleteMarker(img, m.id);
     });
 
-    // 悬停显示提示框（完整文本自动换行，宽度 80vw）
+    // 悬停显示提示框（完整文本自动换行，宽度 80vw）；展开状态不显示
     let tooltipTimer = null;
     el.addEventListener('mouseenter', () => {
+      if (el.classList.contains('expanded')) return;
       clearTimeout(tooltipTimer);
       showMarkerTooltip(img, m, el);
     });
