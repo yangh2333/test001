@@ -692,7 +692,7 @@
     stage.addEventListener('wheel', (e) => {
       e.preventDefault();
       const delta = e.deltaY > 0 ? -0.1 : 0.1;
-      scale = Math.min(Math.max(scale + delta, 0.3), 5);
+      scale = Math.min(Math.max(scale + delta, 0.3), 10);
       applyScale();
     }, { passive: false });
 
@@ -740,7 +740,7 @@
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const action = btn.dataset.action;
-        if (action === 'in') scale = Math.min(scale + 0.2, 5);
+        if (action === 'in') scale = Math.min(scale + 0.2, 10);
         else if (action === 'out') scale = Math.max(scale - 0.2, 0.3);
         else scale = 1;
         applyScale();
