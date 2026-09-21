@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>图片标注工具</title>
+<script id="embedded-data" type="application/json"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -537,17 +538,27 @@
   <button class="type-btn sync" data-type="sync"><span class="tag">S</span>信息同步</button>
   <button class="action-btn" id="clearAll">清空全部标注</button>
   <button class="action-btn" id="exportData">导出标注 JSON</button>
+  <button class="action-btn" id="saveHtml" style="background:#10b981;">💾 保存为 HTML</button>
   <span class="tip">提示：先选类型再点图片添加标注；鼠标移到小点上展开标签；点击可编辑，× 删除；▷ 进入下一级</span>
 </div>
 
 <script>
-  // 顶层图片（每张图自带 markers 数组）
-  const topImages = [
-    { id: 'img_1', name: '项目管理程序 Logo', src: 'images/6934443c-e6c5-44d4-8287-2ecbf63aa3f7_项目管理程序logo.png', markers: [] },
-    { id: 'img_2', name: '企业微信截图', src: 'images/4eb756e1-1a2d-4855-93a3-7eae66374946_企业微信截图_17441189036649.png', markers: [] },
-    { id: 'img_3', name: '高德打车电子发票', src: 'images/e2e0083f-795d-4708-8d82-a5b235fa4ae1_【博约出行-28.71元-2个行程】高德打车电子发票_00.png', markers: [] },
-    { id: 'img_4', name: '屏幕截图', src: 'images/e695571d-aba8-4b51-8c6e-c39ac547eebe_屏幕截图 2024-10-05 153358.png', markers: [] }
-  ];
+  // 优先读取内嵌数据（保存过的 HTML），否则使用默认图片
+  const embeddedEl = document.getElementById('embedded-data');
+  const embeddedData = embeddedEl && embeddedEl.textContent.trim()
+    ? JSON.parse(embeddedEl.textContent) : null;
+
+  let topImages;
+  if (embeddedData && Array.isArray(embeddedData)) {
+    topImages = embeddedData;
+  } else {
+    topImages = [
+      { id: 'img_1', name: '项目管理程序 Logo', src: 'images/6934443c-e6c5-44d4-8287-2ecbf63aa3f7_项目管理程序logo.png', markers: [] },
+      { id: 'img_2', name: '企业微信截图', src: 'images/4eb756e1-1a2d-4855-93a3-7eae66374946_企业微信截图_17441189036649.png', markers: [] },
+      { id: 'img_3', name: '高德打车电子发票', src: 'images/e2e0083f-795d-4708-8d82-a5b235fa4ae1_【博约出行-28.71元-2个行程】高德打车电子发票_00.png', markers: [] },
+      { id: 'img_4', name: '屏幕截图', src: 'images/e695571d-aba8-4b51-8c6e-c39ac547eebe_屏幕截图 2024-10-05 153358.png', markers: [] }
+    ];
+  }
 
   const typeMap = {
     problem:  { label: '问题', color: '#ef4444' },
@@ -1073,6 +1084,72 @@
     a.download = 'annotations.json';
     a.click();
     URL.revokeObjectURL(url);
+  });
+
+  // 将图片转为 base64（自包含，复制 HTML 后无需图片文件夹）
+  async function imageToBase64(src) {
+    if (!src || src.startsWith('data:')) return src;
+    try {
+      const res = await fetch(src);
+      const blob = await res.blob();
+      return new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.readAsDataURL(blob);
+      });
+    } catch (e) {
+      return src; // 失败则保留原路径
+    }
+  }
+
+  // 深度遍历所有图片（顶层 + 标注子级），统一转 base64
+  async function serializeAllImages() {
+    const data = JSON.parse(JSON.stringify(topImages));
+    for (const img of data) {
+      img.src = await imageToBase64(img.src);
+      for (const m of img.markers) {
+        if (Array.isArray(m.children)) {
+          for (const child of m.children) {
+            child.src = await imageToBase64(child.src);
+          }
+        }
+      }
+    }
+    return data;
+  }
+
+  // 保存为自包含 HTML
+  document.getElementById('saveHtml').addEventListener('click', async () => {
+    const btn = document.getElementById('saveHtml');
+    const origText = btn.textContent;
+    btn.textContent = '⏳ 正在保存...';
+    btn.disabled = true;
+
+    try {
+      const data = await serializeAllImages();
+      const json = JSON.stringify(data)
+        .replace(/<\/script>/g, '<\\/script>'); // 转义防止闭合
+
+      // 取当前 HTML 源码并替换内嵌数据
+      let html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+      html = html.replace(
+        /<script id="embedded-data" type="application\/json">[\s\S]*?<\/script>/,
+        `<script id="embedded-data" type="application/json">${json}<\/script>`
+      );
+
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = '图片标注_' + new Date().toISOString().slice(0,10).replace(/-/g,'') + '.html';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert('保存失败：' + e.message);
+    } finally {
+      btn.textContent = origText;
+      btn.disabled = false;
+    }
   });
 
   // 初始化
