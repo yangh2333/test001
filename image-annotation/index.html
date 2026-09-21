@@ -814,20 +814,20 @@
     });
 
     // 悬停显示提示框（完整文本自动换行，宽度 80vw）；展开状态不显示
-    let tooltipTimer = null;
     el.addEventListener('mouseenter', () => {
       if (el.classList.contains('expanded')) return;
-      clearTimeout(tooltipTimer);
+      clearTimeout(tooltipHideTimer);
       showMarkerTooltip(img, m, el);
     });
     el.addEventListener('mouseleave', () => {
-      tooltipTimer = setTimeout(() => hideMarkerTooltip(), 200);
+      tooltipHideTimer = setTimeout(() => hideMarkerTooltip(), 500);
     });
 
     inner.appendChild(el);
   }
 
-  // 显示标注提示框
+  // 统一定时器：标注点与提示框共用，确保鼠标移到提示框上不消失
+  let tooltipHideTimer = null;
   let activeTooltip = null;
   function showMarkerTooltip(img, m, anchorEl) {
     hideMarkerTooltip();
@@ -862,14 +862,14 @@
       hideMarkerTooltip();
       deleteMarker(img, m.id);
     });
-    tip.addEventListener('mouseenter', () => { if (activeTooltip === tip) clearTimeout(tip._timer); });
-    tip.addEventListener('mouseleave', () => { tip._timer = setTimeout(() => hideMarkerTooltip(), 200); });
+    tip.addEventListener('mouseenter', () => { clearTimeout(tooltipHideTimer); });
+    tip.addEventListener('mouseleave', () => { tooltipHideTimer = setTimeout(() => hideMarkerTooltip(), 500); });
 
     document.body.appendChild(tip);
 
-    // 定位：优先在标注下方，超出视口则放上方
+    // 定位：优先在标注下方（与标注轻微重叠避免间隙），超出视口则放上方
     const rect = anchorEl.getBoundingClientRect();
-    let top = rect.bottom + 8;
+    let top = rect.bottom - 2;
     let left = rect.left + rect.width / 2;
     // 先放入 DOM 以获取尺寸
     const tipRect = tip.getBoundingClientRect();
@@ -877,7 +877,7 @@
     if (left < 8) left = 8;
     if (left + tipRect.width > window.innerWidth - 8) left = window.innerWidth - tipRect.width - 8;
     if (top + tipRect.height > window.innerHeight - 8) {
-      top = rect.top - tipRect.height - 8;
+      top = rect.top - tipRect.height + 2;
     }
     tip.style.top = Math.max(8, top) + 'px';
     tip.style.left = left + 'px';
@@ -886,6 +886,7 @@
   }
 
   function hideMarkerTooltip() {
+    clearTimeout(tooltipHideTimer);
     if (activeTooltip) {
       activeTooltip.remove();
       activeTooltip = null;
