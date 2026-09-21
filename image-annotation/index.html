@@ -120,6 +120,27 @@
     padding: 2px 8px;
     border-radius: 10px;
   }
+  .card-title .card-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-title .card-del {
+    width: 20px;
+    height: 20px;
+    border: none;
+    border-radius: 50%;
+    background: #f3f4f6;
+    color: #9ca3af;
+    font-size: 14px;
+    line-height: 18px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .card-title .card-del:hover {
+    background: #ef4444;
+    color: #fff;
+  }
   .img-stage {
     position: relative;
     width: 100%;
@@ -603,10 +624,8 @@
     const imgs = getCurrentImages();
     imgs.forEach(img => renderCard(img));
 
-    // 如果不是顶层，显示"添加子图"卡片
-    if (navPath.length > 0) {
-      renderAddChildCard();
-    }
+    // 顶层显示"添加图片"，子层级显示"添加子级图片"
+    renderAddChildCard();
   }
 
   // 渲染单张图片卡片
@@ -615,8 +634,11 @@
     card.className = 'card';
     card.innerHTML = `
       <div class="card-title">
-        <span>${img.name}</span>
-        <span class="badge" id="count-${img.id}">0 个标注</span>
+        <span class="card-name">${img.name}</span>
+        <div class="card-actions">
+          <span class="badge" id="count-${img.id}">0 个标注</span>
+          <button class="card-del" title="删除图片">×</button>
+        </div>
       </div>
       <div class="img-stage" data-img-id="${img.id}">
         <div class="img-inner" id="inner-${img.id}">
@@ -631,6 +653,21 @@
       </div>
     `;
     gallery.appendChild(card);
+
+    // 删除图片
+    card.querySelector('.card-del').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!confirm(`确定删除图片「${img.name}」吗？`)) return;
+      if (navPath.length === 0) {
+        const idx = topImages.findIndex(i => i.id === img.id);
+        if (idx >= 0) topImages.splice(idx, 1);
+      } else {
+        const parent = navPath[navPath.length - 1];
+        const idx = parent.children.findIndex(i => i.id === img.id);
+        if (idx >= 0) parent.children.splice(idx, 1);
+      }
+      renderLevel();
+    });
 
     const stage = card.querySelector('.img-stage');
     const inner = card.querySelector('.img-inner');
@@ -719,9 +756,12 @@
 
   // 渲染"添加子图"卡片
   function renderAddChildCard() {
+    const isTop = navPath.length === 0;
     const card = document.createElement('div');
     card.className = 'add-child-card';
-    card.innerHTML = `<span class="plus">+</span><span>添加子级图片</span><span style="font-size:12px;margin-top:4px;opacity:0.7">点击上传图片，进入下一层级</span>`;
+    const title = isTop ? '添加图片' : '添加子级图片';
+    const desc = isTop ? '点击上传图片到首页' : '点击上传图片，进入下一层级';
+    card.innerHTML = `<span class="plus">+</span><span>${title}</span><span style="font-size:12px;margin-top:4px;opacity:0.7">${desc}</span>`;
     card.addEventListener('click', () => {
       const input = document.getElementById('childImgInput');
       input.value = '';
@@ -736,14 +776,19 @@
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      const parentMarker = navPath[navPath.length - 1];
-      const childImg = {
-        id: 'child_' + Date.now(),
-        name: file.name,
+      const newImg = {
+        id: 'img_' + Date.now(),
+        name: file.name.replace(/\.[^.]+$/, ''),
         src: ev.target.result,
         markers: []
       };
-      parentMarker.children.push(childImg);
+      if (navPath.length === 0) {
+        topImages.push(newImg);
+      } else {
+        const parentMarker = navPath[navPath.length - 1];
+        newImg.id = 'child_' + Date.now();
+        parentMarker.children.push(newImg);
+      }
       renderLevel();
     };
     reader.readAsDataURL(file);
